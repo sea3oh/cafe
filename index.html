@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Бариста Симулятор</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at 30% 20%, #3b2418, #1a0f0a);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #f5e6d3;
+    padding: 20px;
+    overflow: hidden;
+    transition: background 0.4s ease;
+  }
+  body.counter-mode-bg {
+    background: #e8dcc8;
+  }
+
+  /* ============ СТАРТОВОЕ МЕНЮ ============ */
+  .start-screen {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, #3b2418, #1a0f0a 70%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 26px;
+    z-index: 200;
+    padding: 20px;
+    text-align: center;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  .start-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .start-logo { font-size: 80px; line-height: 1; animation: float 3s ease-in-out infinite; }
+  .start-game-name {
+    font-size: 40px; font-weight: bold; letter-spacing: 4px;
+    color: #d9a066; text-shadow: 0 4px 20px rgba(217,160,102,0.4);
+  }
+  .start-title {
+    font-size: 20px; letter-spacing: 3px; color: #b99b7a;
+    text-transform: uppercase; animation: fadeIn 1s ease;
+  }
+  .start-buttons {
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    animation: fadeIn 1.4s ease;
+  }
+  .mode-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 22px 34px;
+    background: linear-gradient(180deg, #3a2418, #2b1a12);
+    border: 2px solid #6b4526;
+    border-radius: 18px;
+    cursor: pointer;
+    color: #f5e6d3;
+    transition: 0.2s;
+    min-width: 240px;
+  }
+  .mode-btn:hover {
+    border-color: #d9a066;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(217,160,102,0.25);
+  }
+  .mode-btn .mode-emoji { font-size: 42px; }
+  .mode-btn .mode-name { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #d9a066; }
+  .mode-btn .mode-desc { font-size: 13px; color: #b99b7a; line-height: 1.4; max-width: 200px; }
+  .start-hint { font-size: 14px; color: #6a5a4a; animation: fadeIn 1.8s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-12px); }
+  }
+
+  /* ============ РЕЖИМ ТРЕНИРОВКИ ============ */
+  .layout { display: flex; gap: 20px; align-items: flex-start; }
+  .game {
+    display: flex; gap: 40px;
+    background: rgba(0,0,0,0.35);
+    padding: 30px; border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    flex-wrap: wrap; justify-content: center;
+  }
+  h1 {
+    text-align: center; width: 100%;
+    font-size: 28px; letter-spacing: 2px;
+    color: #d9a066; text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    margin-bottom: 10px;
+  }
+  .ingredients { display: flex; flex-direction: column; gap: 12px; }
+  .ing-btn {
+    display: flex; align-items: center; gap: 12px;
+    background: #2b1a12; border: 2px solid #4a2f22;
+    color: #f5e6d3; padding: 10px 16px;
+    border-radius: 12px; cursor: pointer;
+    font-size: 16px; transition: 0.2s; width: 240px;
+  }
+  .ing-btn:hover:not(:disabled) { border-color: #d9a066; transform: translateX(4px); }
+  .ing-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .ing-btn .limit {
+    margin-left: auto; font-size: 12px; color: #b99b7a;
+    background: #1a0f0a; padding: 2px 8px; border-radius: 8px;
+  }
+  .swatch {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0;
+  }
+  .cup-area { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .cup {
+    width: 160px; height: 220px;
+    border: 6px solid #e8d5b7; border-top: none;
+    border-radius: 0 0 60px 60px / 0 0 90px 90px;
+    position: relative; overflow: hidden;
+    background: rgba(255,255,255,0.05);
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.4);
+  }
+  .cup::before {
+    content: ""; position: absolute;
+    right: -40px; top: 40px; width: 50px; height: 90px;
+    border: 6px solid #e8d5b7; border-left: none;
+    border-radius: 0 50px 50px 0;
+  }
+  .liquid-layer {
+    position: absolute; left: 0; width: 100%;
+    transition: all 0.4s ease;
+  }
+  .steam {
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%); width: 60px; height: 80px;
+    pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 5;
+  }
+  .steam span {
+    position: absolute; bottom: 0; width: 10px; height: 10px;
+    background: rgba(255,255,255,0.5); border-radius: 50%;
+    animation: rise 2.5s infinite;
+  }
+  @keyframes rise {
+    0% { transform: translateY(0) scale(1); opacity: 0.7; }
+    100% { transform: translateY(-80px) scale(3); opacity: 0; }
+  }
+  .counter { font-size: 14px; color: #b99b7a; }
+  .brew-btn {
+    padding: 14px 30px; font-size: 18px; font-weight: bold;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, #d9a066, #a8713d);
+    color: #1a0f0a; border: none; border-radius: 14px;
+    cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #6b4526;
+  }
+  .brew-btn:disabled {
+    background: #4a3a2e; color: #8a7a6a;
+    box-shadow: 0 6px 0 #2a1f18; cursor: not-allowed;
+  }
+  .brew-btn:not(:disabled):hover { transform: translateY(-2px); }
+  .brew-btn:not(:disabled):active { transform: translateY(4px); box-shadow: 0 2px 0 #6b4526; }
+  .reset-btn {
+    background: transparent; border: 2px solid #6b4526;
+    color: #b99b7a; padding: 8px 18px;
+    border-radius: 10px; cursor: pointer; font-size: 14px;
+  }
+  .reset-btn:hover { border-color: #d9a066; color: #f5e6d3; }
+
+  /* РЕЗУЛЬТАТ */
+  .result-screen {
+    position: fixed; inset: 0;
+    background: rgba(10, 5, 3, 0.92);
+    display: none; justify-content: center; align-items: center;
+    z-index: 100; padding: 20px; flex-direction: column; gap: 20px;
+  }
+  .result-screen.active { display: flex; }
+  .result-card {
+    background: #241610; border: 3px solid #d9a066;
+    border-radius: 24px; padding: 30px 40px; max-width: 480px;
+    text-align: center; box-shadow: 0 0 80px rgba(217,160,102,0.3);
+    animation: pop 0.4s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0.7); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .result-emoji { font-size: 80px; line-height: 1; margin-bottom: 10px; }
+  .result-name {
+    font-size: 28px; color: #d9a066; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .result-recipe { font-size: 14px; color: #8a7a6a; margin-bottom: 16px; font-style: italic; }
+  .result-text { font-size: 18px; line-height: 1.5; color: #f5e6d3; margin-bottom: 24px; }
+  .result-buttons { display: flex; gap: 12px; justify-content: center; }
+
+  /* АЧИВКИ */
+  .achievements-panel {
+    width: 340px; max-height: 90vh;
+    background: rgba(0,0,0,0.55);
+    border: 2px solid #4a2f22; border-radius: 20px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .achievements-panel.active { display: flex; }
+  .ach-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; background: #2b1a12; border-bottom: 2px solid #4a2f22;
+  }
+  .ach-title { font-size: 20px; color: #d9a066; font-weight: bold; letter-spacing: 1px; }
+  .ach-close {
+    background: transparent; border: 2px solid #6b4526;
+    color: #b99b7a; width: 34px; height: 34px;
+    border-radius: 10px; cursor: pointer; font-size: 18px;
+    line-height: 1; transition: 0.2s;
+  }
+  .ach-close:hover { border-color: #d9a066; color: #f5e6d3; background: #3a2418; }
+  .ach-stats {
+    padding: 10px 20px; font-size: 13px; color: #b99b7a;
+    background: #1f1209; border-bottom: 1px solid #4a2f22;
+  }
+  .ach-stats strong { color: #d9a066; }
+  .ach-list {
+    padding: 12px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px; flex: 1;
+  }
+  .ach-list::-webkit-scrollbar { width: 8px; }
+  .ach-list::-webkit-scrollbar-thumb { background: #4a2f22; border-radius: 4px; }
+  .ach-list::-webkit-scrollbar-track { background: #1a0f0a; }
+  .ach-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 12px;
+    background: #1f1209; border: 2px solid #2b1a12;
+    transition: 0.2s;
+  }
+  .ach-item.done { border-color: #6b8f4a; background: #1e2a16; }
+  .ach-item.locked { opacity: 0.65; }
+  .ach-icon { font-size: 28px; width: 40px; text-align: center; flex-shrink: 0; }
+  .ach-item.locked .ach-icon { filter: blur(3px); }
+  .ach-info { flex: 1; min-width: 0; }
+  .ach-name { font-size: 15px; font-weight: 600; color: #f5e6d3; margin-bottom: 2px; }
+  .ach-item.locked .ach-name { color: #6a5a4a; }
+  .ach-recipe-small {
+    font-size: 11px; color: #8a7a6a; font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ach-item.locked .ach-recipe-small { color: #5a4a3a; }
+  .ach-check { font-size: 18px; color: #6b8f4a; flex-shrink: 0; }
+  .ach-lock { font-size: 16px; color: #6a5a4a; flex-shrink: 0; }
+  .open-ach-btn {
+    padding: 12px 18px; background: #2b1a12;
+    border: 2px solid #d9a066; color: #d9a066;
+    border-radius: 12px; cursor: pointer; font-size: 14px;
+    font-weight: bold; letter-spacing: 1px; transition: 0.2s;
+    white-space: nowrap;
+  }
+  .open-ach-btn:hover { background: #3a2418; transform: translateY(-2px); }
+
+  /* ============ РЕЖИМ "ЗА СТОЙКОЙ" ============ */
+  .counter-mode {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    background: linear-gradient(180deg, #f0e9dc 0%, #e3d9c6 55%, #d4c7ae 70%, #b8a888 100%);
+    z-index: 50;
+    overflow: hidden;
+  }
+  .counter-mode.active { display: flex; }
+
+  .clients-area {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 55%;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .client {
+    position: absolute;
+    bottom: 0;
+    left: -140px;
+    width: 120px;
+    transition: left 1.6s cubic-bezier(0.25, 0.8, 0.35, 1);
+    pointer-events: auto;
+  }
+  .client.arrived { left: 50%; transform: translateX(-50%); }
+  .client.leaving {
+    left: 120% !important;
+    transform: translateX(0) !important;
+    transition: left 1.6s cubic-bezier(0.55, 0.1, 0.7, 0.3);
+  }
+  .client-order-bubble {
+    position: absolute;
+    top: -8px; left: 50%;
+    transform: translateX(-50%) scale(0);
+    background: #fffaf0;
+    border: 3px solid #2b1a12;
+    border-radius: 18px;
+    padding: 8px 14px;
+    font-size: 15px; font-weight: bold;
+    color: #2b1a12; white-space: normal;
+    max-width: 260px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, border-color 0.2s;
+    z-index: 10;
+    line-height: 1.3;
+  }
+  .client-order-bubble::after {
+    content: ""; position: absolute;
+    bottom: -11px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-top: 11px solid #2b1a12;
+  }
+  .client-order-bubble::before {
+    content: ""; position: absolute;
+    bottom: -7px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 9px solid #fffaf0;
+    z-index: 1;
+  }
+  .client-order-bubble.show { transform: translateX(-50%) scale(1); }
+  .client-order-emoji { font-size: 18px; margin-right: 4px; }
+  .client svg { display: block; width: 100%; height: auto; }
+
+  .customer-stats {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: rgba(43, 26, 18, 0.85);
+    color: #f5e6d3;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    z-index: 30;
+    display: flex; gap: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .customer-stats strong { color: #d9a066; }
+
+  .counter-table {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(180deg, #7a5433 0%, #6b4526 4%, #5a3a1e 8%, #3a2418 100%);
+    box-shadow: inset 0 8px 20px rgba(0,0,0,0.4), 0 -10px 30px rgba(0,0,0,0.25);
+    z-index: 15;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 26px 40px 0;
+    gap: 30px;
+  }
+  .counter-table::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 14px;
+    background: linear-gradient(180deg, #9a7048, #7a5433);
+    border-bottom: 2px solid #2b1a12;
+  }
+  .counter-table::after {
+    content: ""; position: absolute;
+    top: 14px; left: 0; right: 0; height: 6px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3), transparent);
+  }
+
+  .counter-cup-zone {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    margin-top: 8px; z-index: 20;
+  }
+  .counter-cup-zone .cup {
+    background: rgba(255,255,255,0.4);
+    border-color: #f0e9dc;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.25), 0 8px 20px rgba(0,0,0,0.3);
+  }
+  .counter-cup-zone .cup::before { border-color: #f0e9dc; }
+  .counter-cup-zone .counter {
+    color: #f0e9dc; font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .coffee-machine {
+    display: flex; flex-direction: column; align-items: center;
+    margin-top: -6px; z-index: 20;
+  }
+  .machine-body {
+    background: linear-gradient(180deg, #3a3a3a, #1f1f1f);
+    border: 3px solid #0d0d0d;
+    border-radius: 16px 16px 8px 8px;
+    padding: 14px 16px 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.1);
+    display: flex; flex-direction: column; gap: 10px;
+    width: 300px;
+  }
+  .machine-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding-bottom: 8px;
+    border-bottom: 2px solid #0d0d0d;
+  }
+  .machine-logo {
+    font-size: 13px; font-weight: bold;
+    color: #d9a066; letter-spacing: 2px;
+  }
+  .machine-dot {
+    width: 10px; height: 10px;
+    background: #6b8f4a; border-radius: 50%;
+    box-shadow: 0 0 8px #6b8f4a;
+    animation: blink 2s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .machine-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .machine-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+    border: 2px solid #1a1a1a;
+    border-radius: 8px;
+    color: #f5e6d3;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.15s;
+    text-align: left;
+    width: 100%;
+  }
+  .machine-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #5a5a5a, #3a3a3a);
+    border-color: #d9a066;
+  }
+  .machine-btn:disabled {
+    opacity: 0.4; cursor: not-allowed; filter: grayscale(0.6);
+  }
+  .machine-btn .limit {
+    margin-left: auto;
+    font-size: 11px;
+    color: #b99b7a;
+    background: #0d0d0d;
+    padding: 1px 6px;
+    border-radius: 6px;
+  }
+  .machine-btn .swatch {
+    width: 14px; height: 14px; border-width: 1px;
+  }
+  .machine-steam-vent {
+    width: 100%; height: 10px;
+    background: linear-gradient(180deg, #0d0d0d, #2a2a2a);
+    border-radius: 4px;
+  }
+
+  .action-bar {
+    position: absolute;
+    bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 14px;
+    z-index: 30;
+  }
+  .action-bar button {
+    padding: 12px 26px;
+    font-size: 16px; font-weight: bold; letter-spacing: 1px;
+    border: none; border-radius: 12px;
+    cursor: pointer; transition: 0.2s;
+  }
+  .serve-btn {
+    background: linear-gradient(180deg, #6b8f4a, #4a6b2e);
+    color: #fffaf0;
+    box-shadow: 0 5px 0 #2e451a;
+  }
+  .serve-btn:disabled {
+    background: #4a4a4a; color: #8a8a8a;
+    box-shadow: 0 5px 0 #2a2a2a;
+    cursor: not-allowed;
+  }
+  .serve-btn:not(:disabled):hover { transform: translateY(-2px); }
+  .serve-btn:not(:disabled):active { transform: translateY(3px); box-shadow: 0 2px 0 #2e451a; }
+  .dump-btn {
+    background: transparent;
+    border: 2px solid #f0e9dc;
+    color: #f0e9dc;
+  }
+  .dump-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+  .dump-btn:disabled {
+    opacity: 0.4; cursor: not-allowed;
+  }
+
+  .hints-panel {
+    position: absolute;
+    top: 60px;
+    left: 20px;
+    background: rgba(43, 26, 18, 0.92);
+    border: 2px solid #6b4526;
+    border-radius: 14px;
+    padding: 10px 14px;
+    color: #f5e6d3;
+    font-size: 12px;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 240px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .hint-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .hints-panel .hint-title {
+    color: #d9a066;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .hint-toggle {
+    background: transparent;
+    border: 1px solid #6b4526;
+    color: #b99b7a;
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    transition: 0.2s;
+    padding: 0;
+  }
+  .hint-toggle:hover { border-color: #d9a066; color: #f5e6d3; }
+  .hint-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .show-hints-btn {
+    position: absolute;
+    top: 60px;
+    left: 20px;
+    padding: 8px 14px;
+    background: rgba(43, 26, 18, 0.85);
+    border: 2px solid #6b4526;
+    color: #d9a066;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    z-index: 25;
+    transition: 0.2s;
+  }
+  .show-hints-btn:hover { border-color: #d9a066; background: rgba(58, 36, 24, 0.95); };
+  }
+  .hints-panel .hint-title {
+    color: #d9a066;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 11px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .hint-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 5px 8px;
+    background: #1f1209;
+    border-radius: 8px;
+    border: 1px solid #4a2f22;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .hint-item strong { color: #d9a066; }
+  .hint-emoji { flex-shrink: 0; font-size: 13px; }
+
+  .back-to-menu-btn {
+    position: absolute;
+    top: 16px; left: 20px;
+    padding: 8px 16px;
+    background: rgba(43, 26, 18, 0.85);
+    border: 2px solid #6b4526;
+    color: #f5e6d3;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    z-index: 30;
+    transition: 0.2s;
+  }
+  .back-to-menu-btn:hover { border-color: #d9a066; }
+
+  .gameover-screen {
+    position: fixed; inset: 0;
+    background: rgba(10, 5, 3, 0.94);
+    display: none; justify-content: center; align-items: center;
+    z-index: 300; padding: 20px;
+  }
+  .gameover-screen.active { display: flex; }
+  .gameover-card {
+    background: #241610; border: 3px solid #d9a066;
+    border-radius: 24px; padding: 36px 48px;
+    text-align: center; max-width: 480px;
+    animation: pop 0.4s ease;
+  }
+  .gameover-card h2 {
+    color: #d9a066; font-size: 32px; margin-bottom: 16px;
+    letter-spacing: 3px;
+  }
+  .gameover-card p {
+    font-size: 18px; color: #f5e6d3;
+    margin-bottom: 10px; line-height: 1.6;
+  }
+  .gameover-card .score-big {
+    font-size: 48px; color: #d9a066;
+    font-weight: bold; margin: 12px 0;
+  }
+  .gameover-btns { display: flex; gap: 14px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- ============ СТАРТОВОЕ МЕНЮ ============ -->
+<div class="start-screen" id="startScreen">
+  <div class="start-logo">☕</div>
+  <div class="start-game-name">СИМУЛЯТОР БАРИСТЫ</div>
+  <div class="start-title">Попробуй себя в роли баристы</div>
+  <div class="start-buttons">
+    <button class="mode-btn" id="modeTrainingBtn">
+      <span class="mode-emoji">🎓</span>
+      <span class="mode-name">ТРЕНИРОВКА</span>
+      <span class="mode-desc">Свободно экспериментируй, изучай 38 рецептов и собирай ачивки</span>
+    </button>
+    <button class="mode-btn" id="modeCounterBtn">
+      <span class="mode-emoji">🧑‍🍳</span>
+      <span class="mode-name">ЗА СТОЙКОЙ</span>
+      <span class="mode-desc">Обслуживай клиентов и принимай заказы на настоящей кофейной стойке</span>
+    </button>
+  </div>
+  <div class="start-hint">Выбери режим, чтобы начать</div>
+</div>
+
+<!-- ============ РЕЖИМ ТРЕНИРОВКИ ============ -->
+<div class="layout" id="gameLayout" style="display:none;">
+  <div class="game">
+    <h1>☕ СИМУЛЯТОР БАРИСТЫ ☕</h1>
+    <div class="ingredients" id="ingredients"></div>
+    <div class="cup-area">
+      <div class="cup" id="cup">
+        <div class="steam" id="steam">
+          <span style="left:10px; animation-delay:0s;"></span>
+          <span style="left:25px; animation-delay:0.8s;"></span>
+          <span style="left:40px; animation-delay:1.6s;"></span>
+        </div>
+      </div>
+      <div class="counter" id="counter">0 / 4 ингредиентов</div>
+      <button class="brew-btn" id="brewBtn" disabled>СВАРИТЬ</button>
+      <button class="reset-btn" id="resetBtn">Вылить всё</button>
+      <button class="open-ach-btn" id="openAchBtn">🏆 АЧИВКИ</button>
+      <button class="reset-btn" id="backToMenuBtn" style="margin-top:8px;">← В меню</button>
+    </div>
+  </div>
+
+  <div class="achievements-panel" id="achPanel">
+    <div class="ach-header">
+      <div class="ach-title">🏆 Ачивки</div>
+      <button class="ach-close" id="closeAchBtn" title="Закрыть">✕</button>
+    </div>
+    <div class="ach-stats" id="achStats"></div>
+    <div class="ach-list" id="achList"></div>
+  </div>
+</div>
+
+<!-- ============ РЕЖИМ "ЗА СТОЙКОЙ" ============ -->
+<div class="counter-mode" id="counterMode">
+  <button class="back-to-menu-btn" id="backFromCounterBtn">← В меню</button>
+
+  <div class="customer-stats" id="customerStats">
+    <span>Обслужено: <strong id="servedCount">0</strong></span>
+    <span>Ошибок: <strong id="mistakeCount">0</strong></span>
+  </div>
+
+  <div class="clients-area" id="clientsArea"></div>
+
+    <div class="hints-panel" id="hintsPanel">
+    <div class="hint-header">
+      <div class="hint-title">📋 Шпаргалка заказов</div>
+      <button class="hint-toggle" id="hintToggleBtn" title="Скрыть шпаргалку">✕</button>
+    </div>
+    <div class="hint-list" id="hintList"></div>
+  </div>
+
+  <!-- Кнопка, чтобы вернуть шпаргалку, если скрыта -->
+  <button class="show-hints-btn" id="showHintsBtn" style="display:none;">📋 Шпаргалка</button>
+
+  <div class="counter-table">
+    <div class="counter-cup-zone">
+      <div class="cup" id="counterCup">
+        <div class="steam" id="counterSteam">
+          <span style="left:10px; animation-delay:0s;"></span>
+          <span style="left:25px; animation-delay:0.8s;"></span>
+          <span style="left:40px; animation-delay:1.6s;"></span>
+        </div>
+      </div>
+      <div class="counter" id="counterCupCount">0 / 4</div>
+    </div>
+
+    <div class="coffee-machine">
+      <div class="machine-body">
+        <div class="machine-top">
+          <span class="machine-logo">☕ БАРИСТА-3000</span>
+          <span class="machine-dot"></span>
+        </div>
+        <div class="machine-buttons" id="machineButtons"></div>
+        <div class="machine-steam-vent"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="serve-btn" id="serveBtn" disabled>🍵 ПОДАТЬ</button>
+    <button class="dump-btn" id="dumpBtn" disabled>Вылить</button>
+  </div>
+</div>
+
+<!-- ЭКРАН РЕЗУЛЬТАТА -->
+<div class="result-screen" id="resultScreen">
+  <div class="result-card">
+    <div class="result-emoji" id="resEmoji">☕</div>
+    <div class="result-name" id="resName"></div>
+    <div class="result-recipe" id="resRecipe"></div>
+    <div class="result-text" id="resText"></div>
+    <div class="result-buttons">
+      <button class="brew-btn" id="againBtn">Сварить ещё</button>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН КОНЦА ИГРЫ -->
+<div class="gameover-screen" id="gameoverScreen">
+  <div class="gameover-card">
+    <h2>СМЕНА ОКОНЧЕНА</h2>
+    <p>Обслужено клиентов:</p>
+    <div class="score-big" id="finalServed">0</div>
+    <p>Ошибок: <strong id="finalMistakes" style="color:#c76a5a;">0</strong></p>
+    <p id="finalVerdict" style="font-style:italic; color:#b99b7a; margin-top:14px;"></p>
+    <div class="gameover-btns">
+      <button class="mode-btn" id="playAgainBtn" style="min-width:auto; padding:14px 26px;">
+        <span class="mode-name">Ещё раз</span>
+      </button>
+      <button class="mode-btn" id="backToMenuFromEndBtn" style="min-width:auto; padding:14px 26px;">
+        <span class="mode-name">В меню</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= ДАННЫЕ ================= */
+const INGREDIENTS = {
+  water:    { name: "Вода",            color: "#9fd4e8", limit: 4 },
+  espresso: { name: "Эспрессо",        color: "#3a1f10", limit: 2 },
+  milk:     { name: "Молоко",          color: "#f5f0e6", limit: 4 },
+  foam:     { name: "Молочная пенка",  color: "#fbf7f0", limit: 1 },
+  choco:    { name: "Горячий шоколад", color: "#5a2d18", limit: 4 }
+};
+
+const RECIPES = [
+  { name: "Просто вода",                 ingredients: ["water","water","water","water"],                 emoji: "💧", text: "Если что, это игра про кофе. Но ладно." },
+  { name: "Облачное молоко",             ingredients: ["water","water","water","milk"],                 emoji: "🥛", text: "Молоко, которое побывало в луже." },
+  { name: "Шоколадный суп",              ingredients: ["water","water","water","choco"],                emoji: "🍫", text: "Какао, которое сдалось." },
+  { name: "Молочный туман",              ingredients: ["water","water","milk","milk"],                  emoji: "🌫️", text: "Наполовину молоко, наполовину сожаление." },
+  { name: "Пена у берега",               ingredients: ["water","water","milk","foam"],                  emoji: "🌊", text: "Пенка есть, а смысла — нет." },
+  { name: "Шоколадная лужа",             ingredients: ["water","water","foam","choco"],                 emoji: "🟤", text: "Кто-то уронил шоколад в воду и решил продать." },
+  { name: "Молочный сироп",              ingredients: ["water","milk","milk","milk"],                   emoji: "🍼", text: "Это молоко. Просто очень уверенное в себе." },
+  { name: "Молочное облако",             ingredients: ["water","milk","milk","foam"],                   emoji: "☁️", text: "Облако, которое слишком много о себе думает." },
+  { name: "Шоколадный туман",            ingredients: ["water","milk","foam","choco"],                  emoji: "🌁", text: "Туман, в котором потерялся шоколад." },
+  { name: "Горячий шоколад",             ingredients: ["choco","choco","choco","milk"],                 emoji: "🍫", text: "Три шоколада и молоко. Это уже десерт, а не напиток." },
+  { name: "Тёплое молоко",               ingredients: ["milk","milk","milk","milk"],                    emoji: "🥛", text: "Ты серьёзно? Ладно, держи." },
+  { name: "Пенная шапка",                ingredients: ["milk","milk","milk","foam"],                    emoji: "🧢", text: "Шапка есть, головы нет." },
+  { name: "Шоколадное молоко",           ingredients: ["milk","milk","milk","choco"],                   emoji: "🍫", text: "Детский сад, группа «Бариста»." },
+  { name: "Шоколадный барон",            ingredients: ["milk","milk","foam","choco"],                   emoji: "🎩", text: "Барон без кофе — это просто шоколадный ноль." },
+  { name: "Двойной шоколад",             ingredients: ["milk","milk","choco","choco"],                  emoji: "🍫", text: "Шоколад на шоколаде. Как ты до этого дожил?" },
+  { name: "Шоколадная перина",           ingredients: ["milk","foam","choco","choco"],                  emoji: "🛏️", text: "Перина из шоколада. Спи, я скажу, что ты сварил." },
+  { name: "Шоколадный бетон",            ingredients: ["foam","choco","choco","choco"],                 emoji: "🧱", text: "Это не напиток. Это стройматериал." },
+  { name: "Расплавленный шоколад",       ingredients: ["choco","choco","choco","choco"],                emoji: "🌋", text: "Ты сварил шоколад. Поздравляю, это уже не кофейня." },
+  { name: "Американо",                        ingredients: ["espresso","water","water","water"],       emoji: "☕", text: "Кофе, который слишком долго говорил с водой." },
+  { name: "Американо с молоком",              ingredients: ["espresso","water","water","milk"],        emoji: "☕", text: "Американо, которое решило стать помягче." },
+  { name: "Мокко-американо",                  ingredients: ["espresso","water","water","choco"],       emoji: "🍫", text: "Американо в шоколадном пальто." },
+  { name: "Флэт уайт",                        ingredients: ["espresso","water","milk","milk"],         emoji: "🥛", text: "Плоский, как мои шутки." },
+  { name: "Капучино с водой",                 ingredients: ["espresso","water","milk","foam"],         emoji: "🧋", text: "Капучино, которое разбавили сомнениями." },
+  { name: "Мокко-американо с пенкой",         ingredients: ["espresso","water","foam","choco"],        emoji: "🌫️", text: "Шоколад, вода, пена — и капля кофе для приличия." },
+  { name: "Латте",                            ingredients: ["espresso","milk","milk","milk"],          emoji: "🥛", text: "Молоко с намёком на кофе. Намёк очень тонкий." },
+  { name: "Капучино",                         ingredients: ["espresso","milk","milk","foam"],          emoji: "🧋", text: "Классика. Даже странно, что ты не испортил." },
+  { name: "Мокко",                            ingredients: ["espresso","milk","milk","choco"],         emoji: "🍫", text: "Кофе, который притворяется десертом." },
+  { name: "Мокко-капучино",                   ingredients: ["espresso","milk","foam","choco"],         emoji: "🎩", text: "Капучино, которое съехало в шоколад." },
+  { name: "Двойной мокко с пенкой",           ingredients: ["espresso","foam","choco","choco"],        emoji: "🍫", text: "Шоколад с кофе. Кофе почти не видно, но он там." },
+  { name: "Густой мокко",                     ingredients: ["espresso","choco","choco","choco"],       emoji: "🌋", text: "Это уже не напиток. Это признание в любви к шоколаду." },
+  { name: "Двойной американо",                ingredients: ["espresso","espresso","water","water"],    emoji: "☕", text: "Двойная горечь. Двойное разочарование." },
+  { name: "Двойной кофе с молоком",           ingredients: ["espresso","espresso","water","milk"],     emoji: "☕", text: "Два эспрессо. Молоко пытается их помирить." },
+  { name: "Двойной американо с шоколадом",    ingredients: ["espresso","espresso","water","choco"],    emoji: "🍫", text: "Двойной удар горечи, замаскированный шоколадом." },
+  { name: "Двойной латте",                    ingredients: ["espresso","espresso","milk","milk"],      emoji: "🥛", text: "Латте для тех, кто не боится молока." },
+  { name: "Двойной капучино",                 ingredients: ["espresso","espresso","milk","foam"],      emoji: "🧋", text: "Двойной капучино. Двойная пенка. Двойные сожаления." },
+  { name: "Двойной мокко",                    ingredients: ["espresso","espresso","milk","choco"],     emoji: "🍫", text: "Два эспрессо и шоколад. Ты уверен?" },
+  { name: "Доппио с шоколадом и пенкой",      ingredients: ["espresso","espresso","foam","choco"],     emoji: "✨", text: "Доппио. Пенка. Шоколад. Слишком много всего." },
+  { name: "Двойной эспрессо с шоколадом",     ingredients: ["espresso","espresso","choco","choco"],    emoji: "🖤", text: "Шоколад, который пытается спасти двойной эспрессо. Не пытайся." }
+];
+
+const ORDERABLE = {
+  "Просто вода":           { emoji: "💧", label: "Воду" },
+  "Горячий шоколад":       { emoji: "🍫", label: "Горячий шоколад" },
+  "Расплавленный шоколад": { emoji: "🍫", label: "Шоколад" },
+  "Тёплое молоко":         { emoji: "🥛", label: "Молоко" },
+  "Американо":             { emoji: "☕", label: "Американо" },
+  "Латте":                 { emoji: "🥛", label: "Латте" },
+  "Капучино":              { emoji: "🧋", label: "Капучино" }
+};
+
+const CLOTH_COLORS = ["#c76a5a", "#5a8fc7", "#6b8f4a", "#c7a35a", "#8a5ac7", "#c75a8a", "#5ac7b8"];
+const HAIR_COLORS  = ["#3a2418", "#1a0f0a", "#8a5a2b", "#c7a35a", "#6a6a6a", "#a83a2b"];
+
+/* ================= РЕПЛИКИ КЛИЕНТОВ ================= */
+const POSITIVE_REPLIES = [
+  "Ого, это именно то, что я хотел!",
+  "Идеально. Просто идеально.",
+  "Вы настоящий профессионал!",
+  "Ммм… это лучше, чем я ожидал.",
+  "Я вернусь сюда ещё. Обязательно."
+];
+
+const NEGATIVE_REPLIES = [
+  "Это… не то, что я просил.",
+  "Вы вообще слушали мой заказ?",
+  "Я лучше пойду в кофейню напротив."
+];
+
+const NEGATIVE_WRONG_INGREDIENT = [
+  "Я просил не это. Совсем не это.",
+  "Тут чего-то слишком много. И это «что-то» — не то, что я хотел."
+];
+
+const NEGATIVE_WRONG_PROPORTION = [
+  "Тут чего-то слишком много. И это «что-то» — не то, что я хотел.",
+  "Вы уверены, что это то самое? На вкус — нет."
+];
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function classifyMistake(madeArr, orderedArr) {
+  const madeSet = new Set(madeArr);
+  const orderedSet = new Set(orderedArr);
+
+  let differentIngredients = false;
+  madeSet.forEach(k => { if (!orderedSet.has(k)) differentIngredients = true; });
+  orderedSet.forEach(k => { if (!madeSet.has(k)) differentIngredients = true; });
+
+  if (differentIngredients) return "wrong-ingredient";
+  return "wrong-proportion";
+}
+
+/* ================= СОСТОЯНИЕ ================= */
+const MAX_SLOTS = 4;
+let cupContents = [];
+const unlockedRecipes = new Set();
+let gameStarted = false;
+let currentMode = null;
+
+let counterCup = [];
+let currentCustomer = null;
+let customerCount = 0;
+let servedCount = 0;
+let mistakeCount = 0;
+const MAX_CUSTOMERS = 5;
+let customerBusy = false;
+
+/* ================= DOM ================= */
+const startScreen = document.getElementById("startScreen");
+const modeTrainingBtn = document.getElementById("modeTrainingBtn");
+const modeCounterBtn = document.getElementById("modeCounterBtn");
+const gameLayout = document.getElementById("gameLayout");
+const counterModeEl = document.getElementById("counterMode");
+const ingredientsEl = document.getElementById("ingredients");
+const cupEl = document.getElementById("cup");
+const counterEl = document.getElementById("counter");
+const brewBtn = document.getElementById("brewBtn");
+const resetBtn = document.getElementById("resetBtn");
+const resultScreen = document.getElementById("resultScreen");
+const achPanel = document.getElementById("achPanel");
+const achList = document.getElementById("achList");
+const achStats = document.getElementById("achStats");
+const openAchBtn = document.getElementById("openAchBtn");
+const closeAchBtn = document.getElementById("closeAchBtn");
+
+/* ================= СТАРТ ================= */
+modeTrainingBtn.addEventListener("click", () => startGame("training"));
+modeCounterBtn.addEventListener("click", () => startGame("counter"));
+
+document.getElementById("backToMenuBtn").addEventListener("click", backToMenu);
+document.getElementById("backFromCounterBtn").addEventListener("click", backToMenu);
+document.getElementById("backToMenuFromEndBtn").addEventListener("click", () => {
+  document.getElementById("gameoverScreen").classList.remove("active");
+  backToMenu();
+});
+
+function startGame(mode) {
+  currentMode = mode;
+  gameStarted = true;
+  startScreen.classList.add("hidden");
+
+  if (mode === "counter") {
+    document.body.classList.add("counter-mode-bg");
+  } else {
+    document.body.classList.remove("counter-mode-bg");
+  }
+
+  setTimeout(() => {
+    if (mode === "training") {
+      gameLayout.style.display = "flex";
+      counterModeEl.classList.remove("active");
+      renderCup();
+      renderAchievements();
+    } else {
+      counterModeEl.classList.add("active");
+      gameLayout.style.display = "none";
+      initCounterMode();
+    }
+  }, 350);
+}
+
+function backToMenu() {
+  gameStarted = false;
+  currentMode = null;
+  gameLayout.style.display = "none";
+  counterModeEl.classList.remove("active");
+  resultScreen.classList.remove("active");
+  startScreen.classList.remove("hidden");
+  document.body.classList.remove("counter-mode-bg");
+
+  document.getElementById("clientsArea").innerHTML = "";
+  currentCustomer = null;
+  customerCount = 0;
+  servedCount = 0;
+  mistakeCount = 0;
+  counterCup = [];
+}
+
+/* ================= РЕЖИМ ТРЕНИРОВКИ ================= */
+Object.entries(INGREDIENTS).forEach(([key, ing]) => {
+  const btn = document.createElement("button");
+  btn.className = "ing-btn";
+  btn.dataset.key = key;
+  btn.innerHTML = `
+    <span class="swatch" style="background:${ing.color}"></span>
+    <span>${ing.name}</span>
+    <span class="limit">0/${ing.limit}</span>
+  `;
+  btn.addEventListener("click", () => addIngredient(key));
+  ingredientsEl.appendChild(btn);
+});
+
+function countOf(key) { return cupContents.filter(k => k === key).length; }
+
+function addIngredient(key) {
+  if (!gameStarted || currentMode !== "training") return;
+  if (cupContents.length >= MAX_SLOTS) return;
+  if (countOf(key) >= INGREDIENTS[key].limit) return;
+  cupContents.push(key);
+  renderCup();
+}
+
+function renderCup() {
+  [...cupEl.querySelectorAll(".liquid-layer")].forEach(el => el.remove());
+  const total = cupContents.length;
+  const layerHeight = 100 / MAX_SLOTS;
+
+  cupContents.forEach((key, i) => {
+    const layer = document.createElement("div");
+    layer.className = "liquid-layer";
+    layer.style.background = INGREDIENTS[key].color;
+    layer.style.height = layerHeight + "%";
+    layer.style.bottom = (i * layerHeight) + "%";
+    if (i > 0) layer.style.borderTop = "2px solid rgba(0,0,0,0.25)";
+    cupEl.appendChild(layer);
+  });
+
+  const hasHot = cupContents.some(k => k === "espresso" || k === "choco");
+  document.getElementById("steam").style.opacity = hasHot && total > 0 ? "1" : "0";
+
+  counterEl.textContent = `${total} / ${MAX_SLOTS} ингредиентов`;
+  brewBtn.disabled = total !== MAX_SLOTS;
+
+  document.querySelectorAll(".ing-btn").forEach(btn => {
+    const key = btn.dataset.key;
+    const used = countOf(key);
+    const lim = INGREDIENTS[key].limit;
+    btn.disabled = total >= MAX_SLOTS || used >= lim;
+    btn.querySelector(".limit").textContent = `${used}/${lim}`;
+  });
+}
+
+function normalize(arr) { return [...arr].sort().join(","); }
+function findRecipe(contents) {
+  const key = normalize(contents);
+  return RECIPES.find(r => normalize(r.ingredients) === key) || null;
+}
+function contentsToRecipeLabel(arr) {
+  const counts = {};
+  arr.forEach(k => counts[k] = (counts[k] || 0) + 1);
+  return Object.entries(counts)
+    .map(([k, n]) => (n > 1 ? `${n} × ` : "") + INGREDIENTS[k].name)
+    .join(" + ");
+}
+
+brewBtn.addEventListener("click", () => {
+  if (cupContents.length !== MAX_SLOTS) return;
+  const recipe = findRecipe(cupContents);
+  if (recipe) unlockedRecipes.add(recipe.name);
+
+  document.getElementById("resEmoji").textContent = recipe ? recipe.emoji : "❓";
+  document.getElementById("resName").textContent  = recipe ? recipe.name  : "Неизвестный напиток";
+  document.getElementById("resRecipe").textContent =
+    recipe ? contentsToRecipeLabel(recipe.ingredients) : contentsToRecipeLabel(cupContents);
+  document.getElementById("resText").textContent =
+    recipe ? recipe.text : "Что ты вообще сделал? Я даже не знаю, как это назвать. Пей на свой страх и риск!";
+
+  renderAchievements();
+  resultScreen.classList.add("active");
+});
+
+function renderAchievements() {
+  const total = RECIPES.length;
+  const done = unlockedRecipes.size;
+  achStats.innerHTML = `Открыто: <strong>${done} / ${total}</strong>`;
+  achList.innerHTML = "";
+  RECIPES.forEach(r => {
+    const isDone = unlockedRecipes.has(r.name);
+    const item = document.createElement("div");
+    item.className = "ach-item " + (isDone ? "done" : "locked");
+    const recipeLine = isDone ? contentsToRecipeLabel(r.ingredients) : "??? состав скрыт ???";
+    item.innerHTML = `
+      <div class="ach-icon">${r.emoji}</div>
+      <div class="ach-info">
+        <div class="ach-name">${isDone ? r.name : "Неизвестный напиток"}</div>
+        <div class="ach-recipe-small">${recipeLine}</div>
+      </div>
+      <div class="${isDone ? "ach-check" : "ach-lock"}">${isDone ? "✓" : "🔒"}</div>
+    `;
+    achList.appendChild(item);
+  });
+}
+
+openAchBtn.addEventListener("click", () => {
+  renderAchievements();
+  achPanel.classList.add("active");
+  openAchBtn.style.display = "none";
+});
+closeAchBtn.addEventListener("click", () => {
+  achPanel.classList.remove("active");
+  openAchBtn.style.display = "";
+});
+
+function resetCup() {
+  cupContents = [];
+  resultScreen.classList.remove("active");
+  renderCup();
+}
+resetBtn.addEventListener("click", resetCup);
+document.getElementById("againBtn").addEventListener("click", resetCup);
+
+/* ================= РЕЖИМ "ЗА СТОЙКОЙ" ================= */
+
+function initCounterMode() {
+  gameStarted = true;   // <-- ВОТ ЭТОЙ СТРОКИ НЕ ХВАТАЛО
+  currentMode = "counter";
+  servedCount = 0;
+  mistakeCount = 0;
+  customerCount = 0;
+  counterCup = [];
+  currentCustomer = null;
+  customerBusy = false;
+  document.getElementById("servedCount").textContent = "0";
+  document.getElementById("mistakeCount").textContent = "0";
+  document.getElementById("clientsArea").innerHTML = "";
+
+  buildMachineButtons();
+  buildHints();
+  renderCounterCup();
+  updateCounterUI();
+
+  setTimeout(spawnCustomer, 800);
+}
+
+function makeClientSVG(clothColor, hairColor) {
+  const variant = Math.floor(Math.random() * 3);
+  let hairPath;
+  if (variant === 0) {
+    hairPath = `<path d="M 22,42 Q 22,22 50,22 Q 78,22 78,42 Q 78,36 70,34 Q 50,30 30,34 Q 22,36 22,42 Z" fill="${hairColor}"/>`;
+  } else if (variant === 1) {
+    hairPath = `
+      <path d="M 22,42 Q 20,20 50,20 Q 80,20 78,42 L 78,72 Q 72,74 72,68 L 72,42 Q 72,34 50,32 Q 28,34 28,42 L 28,68 Q 28,74 22,72 Z" fill="${hairColor}"/>
+    `;
+  } else {
+    hairPath = `
+      <ellipse cx="50" cy="32" rx="28" ry="8" fill="${hairColor}"/>
+      <path d="M 24,34 Q 24,20 50,20 Q 76,20 76,34 Z" fill="${hairColor}"/>
+      <rect x="22" y="34" width="40" height="4" rx="2" fill="${hairColor}" opacity="0.8"/>
+    `;
+  }
+
+  return `
+    <svg viewBox="0 0 100 170" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="165" rx="34" ry="5" fill="rgba(0,0,0,0.15)"/>
+      <path d="M 30,75 Q 30,68 50,68 Q 70,68 70,75 L 72,130 Q 72,140 50,140 Q 28,140 28,130 Z" fill="${clothColor}"/>
+      <path d="M 42,68 L 50,76 L 58,68" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="2"/>
+      <path d="M 30,80 L 22,120 Q 21,125 26,125 Q 30,125 30,122 L 36,86 Z" fill="${clothColor}"/>
+      <path d="M 70,80 L 78,120 Q 79,125 74,125 Q 70,125 70,122 L 64,86 Z" fill="${clothColor}"/>
+      <rect x="44" y="58" width="12" height="14" fill="#e8c4a0"/>
+      <ellipse cx="50" cy="42" rx="22" ry="24" fill="#f0d5b8"/>
+      ${hairPath}
+      <ellipse cx="42" cy="44" rx="2.5" ry="3" fill="#2b1a12"/>
+      <ellipse cx="58" cy="44" rx="2.5" ry="3" fill="#2b1a12"/>
+      <path d="M 44,54 Q 50,58 56,54" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="37" cy="52" rx="4" ry="3" fill="#f0b8a0" opacity="0.5"/>
+      <ellipse cx="63" cy="52" rx="4" ry="3" fill="#f0b8a0" opacity="0.5"/>
+      <rect x="40" y="138" width="8" height="24" fill="#3a2a1a"/>
+      <rect x="52" y="138" width="8" height="24" fill="#3a2a1a"/>
+    </svg>
+  `;
+}
+
+function spawnCustomer() {
+  if (customerCount >= MAX_CUSTOMERS) { endGame(); return; }
+  customerCount++;
+
+  const clothColor = CLOTH_COLORS[Math.floor(Math.random() * CLOTH_COLORS.length)];
+  const hairColor  = HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)];
+
+  const orderKeys = Object.keys(ORDERABLE);
+  const orderKey = orderKeys[Math.floor(Math.random() * orderKeys.length)];
+  const order = ORDERABLE[orderKey];
+  const recipe = RECIPES.find(r => r.name === orderKey);
+
+  if (!recipe) {
+    console.warn("Нет рецепта для заказа:", orderKey);
+    customerCount--;
+    setTimeout(spawnCustomer, 100);
+    return;
+  }
+
+  const clientEl = document.createElement("div");
+  clientEl.className = "client";
+  clientEl.innerHTML = `
+    ${makeClientSVG(clothColor, hairColor)}
+    <div class="client-order-bubble">
+      <span class="client-order-emoji">${order.emoji}</span>${order.label}
+    </div>
+  `;
+  document.getElementById("clientsArea").appendChild(clientEl);
+
+  currentCustomer = { el: clientEl, orderKey, order, recipe };
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { clientEl.classList.add("arrived"); });
+  });
+
+  setTimeout(() => {
+    if (currentCustomer && currentCustomer.el === clientEl) {
+      clientEl.querySelector(".client-order-bubble").classList.add("show");
+    }
+  }, 1700);
+
+  updateCounterUI();
+}
+
+function buildMachineButtons() {
+  const container = document.getElementById("machineButtons");
+  container.innerHTML = "";
+  Object.entries(INGREDIENTS).forEach(([key, ing]) => {
+    const btn = document.createElement("button");
+    btn.className = "machine-btn";
+    btn.dataset.key = key;
+    btn.innerHTML = `
+      <span class="swatch" style="background:${ing.color}"></span>
+      <span>${ing.name}</span>
+      <span class="limit">0/${ing.limit}</span>
+    `;
+    btn.addEventListener("click", () => counterAddIngredient(key));
+    container.appendChild(btn);
+  });
+}
+
+function counterCountOf(key) { return counterCup.filter(k => k === key).length; }
+
+function counterAddIngredient(key) {
+  if (!gameStarted || currentMode !== "counter") return;
+  if (customerBusy) return;
+  if (counterCup.length >= MAX_SLOTS) return;
+  if (counterCountOf(key) >= INGREDIENTS[key].limit) return;
+  counterCup.push(key);
+  renderCounterCup();
+  updateCounterUI();
+}
+
+function renderCounterCup() {
+  const cup = document.getElementById("counterCup");
+  [...cup.querySelectorAll(".liquid-layer")].forEach(el => el.remove());
+  const total = counterCup.length;
+  const layerHeight = 100 / MAX_SLOTS;
+
+  counterCup.forEach((key, i) => {
+    const layer = document.createElement("div");
+    layer.className = "liquid-layer";
+    layer.style.background = INGREDIENTS[key].color;
+    layer.style.height = layerHeight + "%";
+    layer.style.bottom = (i * layerHeight) + "%";
+    if (i > 0) layer.style.borderTop = "2px solid rgba(0,0,0,0.25)";
+    cup.appendChild(layer);
+  });
+
+  const hasHot = counterCup.some(k => k === "espresso" || k === "choco");
+  document.getElementById("counterSteam").style.opacity = hasHot && total > 0 ? "1" : "0";
+  document.getElementById("counterCupCount").textContent = `${total} / ${MAX_SLOTS}`;
+}
+
+function updateCounterUI() {
+  const total = counterCup.length;
+  document.querySelectorAll(".machine-btn").forEach(btn => {
+    const key = btn.dataset.key;
+    const used = counterCountOf(key);
+    const lim = INGREDIENTS[key].limit;
+    btn.disabled = customerBusy || total >= MAX_SLOTS || used >= lim;
+    btn.querySelector(".limit").textContent = `${used}/${lim}`;
+  });
+
+  document.getElementById("serveBtn").disabled =
+    customerBusy || total !== MAX_SLOTS || !currentCustomer;
+
+  document.getElementById("dumpBtn").disabled =
+    customerBusy || total === 0;
+}
+
+function buildHints() {
+  const list = document.getElementById("hintList");
+  list.innerHTML = "";
+  Object.entries(ORDERABLE).forEach(([recipeName, order]) => {
+    const recipe = RECIPES.find(r => r.name === recipeName);
+    if (!recipe) return;
+    const item = document.createElement("div");
+    item.className = "hint-item";
+    item.innerHTML = `<span class="hint-emoji">${order.emoji}</span><span><strong>${order.label}:</strong> ${contentsToRecipeLabel(recipe.ingredients)}</span>`;
+    list.appendChild(item);
+  });
+  // показываем панель и скрываем кнопку-заменитель
+  document.getElementById("hintsPanel").style.display = "flex";
+  document.getElementById("showHintsBtn").style.display = "none";
+}
+
+function showCustomerReaction(clientEl, text, isPositive) {
+  const bubble = clientEl.querySelector(".client-order-bubble");
+  if (!bubble) return;
+
+  bubble.innerHTML = `<span class="client-order-emoji">${isPositive ? "💚" : "💢"}</span>${text}`;
+
+  if (isPositive) {
+    bubble.style.background = "#e8f5e0";
+    bubble.style.borderColor = "#4a6b2e";
+  } else {
+    bubble.style.background = "#fbe4e0";
+    bubble.style.borderColor = "#a83a2b";
+  }
+
+  bubble.classList.add("show");
+  bubble.style.transform = "translateX(-50%) scale(1.1)";
+  setTimeout(() => {
+    bubble.style.transform = "translateX(-50%) scale(1)";
+  }, 200);
+}
+
+/* ==== подача ==== */
+document.getElementById("serveBtn").addEventListener("click", () => {
+  if (counterCup.length !== MAX_SLOTS || !currentCustomer) return;
+  if (customerBusy) return;
+  customerBusy = true;
+  updateCounterUI();
+
+  const safetyTimer = setTimeout(() => {
+    if (customerBusy) {
+      customerBusy = false;
+      updateCounterUI();
+    }
+  }, 6000);
+
+  const madeKey = normalize(counterCup);
+  const orderedIngredients = currentCustomer.recipe ? currentCustomer.recipe.ingredients : [];
+  const orderedKey = normalize(orderedIngredients);
+  const isCorrect = orderedKey.length > 0 && madeKey === orderedKey;
+
+  const customer = currentCustomer;
+
+  if (isCorrect) {
+    servedCount++;
+    document.getElementById("servedCount").textContent = servedCount;
+
+    const reply = pickRandom(POSITIVE_REPLIES);
+    showCustomerReaction(customer.el, reply, true);
+
+    setTimeout(() => {
+      customer.el.classList.add("leaving");
+      setTimeout(() => {
+        customer.el.remove();
+        clearTimeout(safetyTimer);
+        customerBusy = false;
+        currentCustomer = null;
+        counterCup = [];
+        renderCounterCup();
+        updateCounterUI();
+        spawnCustomer();
+      }, 1500);
+    }, 1600);
+
+  } else {
+    mistakeCount++;
+    document.getElementById("mistakeCount").textContent = mistakeCount;
+
+    const mistakeType = classifyMistake(
+      counterCup,
+      customer.recipe ? customer.recipe.ingredients : []
+    );
+    let reply;
+    if (mistakeType === "wrong-ingredient") {
+      reply = pickRandom([...NEGATIVE_REPLIES, ...NEGATIVE_WRONG_INGREDIENT]);
+    } else {
+      reply = pickRandom([...NEGATIVE_REPLIES, ...NEGATIVE_WRONG_PROPORTION]);
+    }
+    showCustomerReaction(customer.el, reply, false);
+
+    setTimeout(() => {
+      customer.el.classList.add("leaving");
+      setTimeout(() => {
+        customer.el.remove();
+        clearTimeout(safetyTimer);
+        customerBusy = false;
+        currentCustomer = null;
+        counterCup = [];
+        renderCounterCup();
+        updateCounterUI();
+        spawnCustomer();
+      }, 1500);
+    }, 2200);
+  }
+});
+
+/* ==== вылить ==== */
+document.getElementById("dumpBtn").addEventListener("click", () => {
+  if (customerBusy) return;
+  counterCup = [];
+  renderCounterCup();
+  updateCounterUI();
+});
+
+function endGame() {
+  gameStarted = false;
+  document.getElementById("finalServed").textContent = servedCount;
+  document.getElementById("finalMistakes").textContent = mistakeCount;
+  const verdict = document.getElementById("finalVerdict");
+  if (mistakeCount === 0) verdict.textContent = "Безупречная смена. Тебя повышают!";
+  else if (mistakeCount <= 2) verdict.textContent = "Неплохо! Пара клиентов ушла расстроенной, но справился.";
+  else if (mistakeCount <= 4) verdict.textContent = "Бывает и хуже. Но начальство смотрит на тебя странно.";
+  else verdict.textContent = "Кажется, тебе лучше вернуться в тренировку.";
+  document.getElementById("gameoverScreen").classList.add("active");
+}
+
+document.getElementById("playAgainBtn").addEventListener("click", () => {
+  document.getElementById("gameoverScreen").classList.remove("active");
+  initCounterMode();
+});
+
+/* ==== скрыть/показать шпаргалку ==== */
+document.getElementById("hintToggleBtn").addEventListener("click", () => {
+  document.getElementById("hintsPanel").style.display = "none";
+  document.getElementById("showHintsBtn").style.display = "block";
+});
+document.getElementById("showHintsBtn").addEventListener("click", () => {
+  document.getElementById("hintsPanel").style.display = "flex";
+  document.getElementById("showHintsBtn").style.display = "none";
+});
+
+/* ================= СТАРТ ================= */
+gameLayout.style.display = "none";
+counterModeEl.classList.remove("active");
+</script>
+</body>
+</html>
